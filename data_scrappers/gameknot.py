@@ -1,23 +1,18 @@
-from bs4 import BeautifulSoup
-import requests
+import os
+import sqlite3
+import time
+import urllib.parse as up
+
 import chess
 import chess.pgn
 import requests
-import json
-import numpy as np
-import urllib.parse as up
-import re
 from tqdm import tqdm
-import sqlite3
-import os
-import time
+
 
 def download_gameknot_game(id):
     url = f"https://gameknot.com/annotate.pl?id={id}"
     results = requests.get(url)
     lines = results.text.split('\n')
-    game_movelist = None
-    game_notes = None
 
     game = chess.pgn.Game()
     node = game
@@ -33,7 +28,8 @@ def download_gameknot_game(id):
     for line in lines:
         if line.startswith('game_movelist'):
             game_str = eval(line[16:-1])
-            game_movelist = [game_str[i: i+5] for i in range(0, len(game_str), 5)]
+            game_movelist = [game_str[i: i+5]
+                for i in range(0, len(game_str), 5)]
             game_movelist = [fix_move(move) for move in game_movelist]
         elif line.startswith('game_notes'):
             game_notes = list(map(up.unquote, eval(line[13:-1])))
@@ -51,24 +47,22 @@ def download_gameknot_game(id):
             game.headers["BlackElo"] = up.unquote(line[28:-3])
         elif line.startswith('game_started'):
             game.headers["Date"] = up.unquote(line[27:-3])
-        
-
 
     node.comment = game_notes[0]
 
-
-    for move, comment in  zip(game_movelist[:-1], game_notes[1:]):
+    for move, comment in zip(game_movelist[:-1], game_notes[1:]):
         node = node.add_variation(chess.Move.from_uci(move))
         node.comment = comment
 
     return game
 
-def load_ids_from_file(file_name = "data_scrappers/annotated_game_ids.txt"):
-    f = open(file_name)
-    return list(map(int, f.readlines()))
+
+def load_ids_from_file(file_name="/home/kamil/Projects/Master-Thesis/data_scrappers/annotated_game_ids.txt"):
+    with open(file_name) as f:
+        return list(map(int, f.readlines()))
 
 
-def download_all_games(table_name = "gameknot_games_2"):
+def download_all_games(table_name="gameknot_games_2"):
     db = sqlite3.connect('./chess.db')
 
     cur = db.cursor()
@@ -84,9 +78,11 @@ def download_all_games(table_name = "gameknot_games_2"):
     game_list = []
     errors_in_row = 0
 
-
     for i, id in enumerate(tqdm(all_ids)):
         if i % 50 == 0:
+            cur.executemany(f"INSERT INTO {table_name}(id, pgn) VALUES(?,?)", game_list)
+            db.commit()
+            game_list = []
             time.sleep(3)
         try:
             game = download_gameknot_game(id)
@@ -95,7 +91,7 @@ def download_all_games(table_name = "gameknot_games_2"):
                 print(game, file=open(f"./data/gameknot/annotated_games_2/{id}.pgn", "w"), end="\n\n")
                 errors_in_row = 0
         except:
-            print(id)
+            # print(id)
             errors_in_row += 1
             failed_ids.append(id)
 
