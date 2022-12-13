@@ -1,8 +1,6 @@
 import chess
 import pandas as pd
-import itertools
 import io
-import re
 
 def game_to_moves(game: chess.pgn.Game):
     return [(node.parent.board().fen(), node.parent.move, node.comment) for node in game.mainline()]
@@ -18,7 +16,3 @@ def games_to_moves(games: pd.DataFrame):
         moves_list += game_moves
 
     return pd.DataFrame(moves_list, columns=["position", "move", "comment", "halfmove_number", "game_id"])
-
-def process_comment(comment: str):
-    comment = re.sub("([ ]|\n|\t)+", " ", comment)
-    comment = re.sub("")

@@ -130,3 +130,9 @@ data/
 
 # Pyre type checker
 .pyre/
+
+# Databases
+*.db
+
+# Visual Studio Code settings
+*.vscode
