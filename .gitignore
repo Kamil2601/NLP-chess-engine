@@ -136,3 +136,6 @@ data/
 
 # Visual Studio Code settings
 *.vscode
+
+# Downloaded pretrained embeddings
+.vector_cache

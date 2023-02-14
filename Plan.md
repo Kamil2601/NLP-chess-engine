@@ -7,3 +7,8 @@ zapis ruchu - pozycja przed i po w FEN
 
 
 
+**Najprostszy preprocessing**
+1. Usuń notację
+2. Podziel na słowa i znaki "?" i "!"
+3. Lemmatyzacja
+4. Słowa -> glove embeddings
