@@ -54,7 +54,7 @@ class PretrainedEmbeddingsIndicesDataset(Dataset):
         shuffled_df = moves_df.sample(frac=1, random_state=random_state)
 
         commments_ind = [torch.tensor([embeddings.stoi[t] for t in com], dtype=torch.int32) for com in shuffled_df[comment_col]]
-        sentiments = [torch.tensor(sent, dtype=torch.int32) for sent in shuffled_df[sentiment_col]]
+        sentiments = [torch.tensor([sent], dtype=torch.float32) for sent in shuffled_df[sentiment_col]]
         
         self.data = list(zip(commments_ind, sentiments))
 
