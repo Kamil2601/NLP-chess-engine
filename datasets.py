@@ -45,22 +45,25 @@ class PretrainedEmbeddingsDataset(Dataset):
 
 
 class PretrainedEmbeddingsIndicesDataset(Dataset):
-    def __init__(self, data, embeddings: torchtext.vocab.Vectors):
+    def __init__(self, moves_df: pd.DataFrame, embeddings: torchtext.vocab.Vectors, comment_col="comment", sentiment_col="sentiment", random_state = None):
         """
             data: [(tokens, sentiment)]
             embeddings: pretrained torchtext embeddings e.g. torchtext.vocab.GloVe
         """
-        _data = data[:]
-        random.shuffle(_data)
-        self.data = sorted(_data, key=lambda item: len(item[0]))
+
+        shuffled_df = moves_df.sample(frac=1, random_state=random_state)
+
+        commments_ind = [torch.tensor([embeddings.stoi[t] for t in com], dtype=torch.int32) for com in shuffled_df[comment_col]]
+        sentiments = [torch.tensor(sent, dtype=torch.int32) for sent in shuffled_df[sentiment_col]]
+        
+        self.data = list(zip(commments_ind, sentiments))
+
+        self.data.sort(key = lambda item: len(item[0]))
+
         self.embeddings = embeddings
 
     def __getitem__(self, index):
-        tokens, sentiment = self.data[index]
-
-        indices = [self.embeddings.stoi[t] for t in tokens]
-
-        return torch.tensor(indices), torch.tensor(sentiment)
+        return self.data[index]
 
     def __len__(self):
         return len(self.data)
