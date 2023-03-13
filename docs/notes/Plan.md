@@ -14,7 +14,7 @@ zapis ruchu - pozycja przed i po w FEN
 4. Słowa -> glove embeddings
 
 
-Sprawdzić model nie-szachowy do sentiment analysis
+Sprawdzić model nie-szachowy do sentiment analysis, transfer learning
 
 zobrist hashing
 
@@ -30,3 +30,11 @@ GPT3 przez API
 BLOOM, Huggingface - mniejsza wersja GPT3
 
 Stockfish - ocena agenta
+
+Ocena reprezentacji - sieć neuronowa ucząca się funkcji stockfisha
+
+
+Sentiment analysis pipeline
+1. Wczytaj DataFrame z ruchami i komentarzami
+2. Utwórz kolumnę z przetworzonymi komentarzami (lista słów)
+3. 

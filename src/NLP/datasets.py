@@ -4,6 +4,7 @@ import torchtext
 import random
 import sqlite3 as db
 import pandas as pd
+import torch.nn as nn
 
 def load_sql_to_df(sql, db_filename):
     con = db.connect(db_filename)
@@ -20,6 +21,19 @@ def add_padding_vector_to_embeddings(embeddings: torchtext.vocab.Vectors, paddin
     padding_vector = torch.zeros((1, embeddings.dim), dtype=embeddings.vectors.dtype)
 
     embeddings.vectors = torch.cat((padding_vector, embeddings.vectors))
+
+
+def DataLoaderPadding(**kwargs):
+    def collate_batch(data):
+        inputs = [item[0] for item in data]
+        targets = [item[1] for item in data]
+
+        input_batch = nn.utils.rnn.pad_sequence(inputs, batch_first=True)
+        target_batch = torch.stack(targets)
+
+        return input_batch, target_batch
+    
+    return torch.utils.data.DataLoader(**kwargs, collate_fn=collate_batch)
 
 
 
@@ -45,18 +59,14 @@ class PretrainedEmbeddingsDataset(Dataset):
 
 
 class PretrainedEmbeddingsIndicesDataset(Dataset):
-    def __init__(self, moves_df: pd.DataFrame, embeddings: torchtext.vocab.Vectors, comment_col="comment", sentiment_col="sentiment", random_state = None):
-        """
-            data: [(tokens, sentiment)]
-            embeddings: pretrained torchtext embeddings e.g. torchtext.vocab.GloVe
-        """
+    def __init__(self, moves_df: pd.DataFrame, embeddings: torchtext.vocab.Vectors, comment_col="comment", sentiment_col="sentiment"):
+        commments_ind = [torch.tensor([embeddings.stoi[t] for t in com], dtype=torch.int32) for com in moves_df[comment_col]]
 
-        shuffled_df = moves_df.sample(frac=1, random_state=random_state)
-
-        commments_ind = [torch.tensor([embeddings.stoi[t] for t in com], dtype=torch.int32) for com in shuffled_df[comment_col]]
-        sentiments = [torch.tensor([sent], dtype=torch.float32) for sent in shuffled_df[sentiment_col]]
-        
-        self.data = list(zip(commments_ind, sentiments))
+        if sentiment_col != None:
+            sentiments = [torch.tensor([sent], dtype=torch.float32) for sent in moves_df[sentiment_col]]            
+            self.data = list(zip(commments_ind, sentiments))
+        else:
+            self.data = [(com,) for com in commments_ind]
 
         self.data.sort(key = lambda item: len(item[0]))
 
