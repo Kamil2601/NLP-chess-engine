@@ -3,6 +3,7 @@ import chess.pgn
 import pandas as pd
 import io
 import numpy as np
+import sqlite3 as db
 
 def game_to_moves(game: chess.pgn.Game):
     return [(node.parent.board().fen(), node.parent.move, node.comment) for node in game.mainline()]
@@ -18,6 +19,13 @@ def games_to_moves(games: pd.DataFrame):
         moves_list += game_moves
 
     return pd.DataFrame(moves_list, columns=["position", "move", "comment", "halfmove_number", "game_id"])
+
+
+def load_sql_to_df(sql, db_filename):
+    con = db.connect(db_filename)
+    data_frame = pd.read_sql_query(sql, con)
+
+    return data_frame
 
 
 

@@ -29,7 +29,7 @@ def test_model(dataloader, model):
     print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
 
 
-def test_high_confidence(dataloader, model, low_boundary = 0.3, high_boundary = None, test_accuracy = True, device = device):
+def test_high_confidence(dataloader, model, low_boundary = 0.3, high_boundary = None, test_accuracy = True):
     size = len(dataloader.dataset)
     model.eval()
 
@@ -68,7 +68,7 @@ def test_high_confidence(dataloader, model, low_boundary = 0.3, high_boundary = 
 
 
 
-def predict(dataloader, model, low_boundary = 0.3, high_boundary = None, device = device):
+def predict(dataloader, model, low_boundary = 0.3, high_boundary = None):
     size = len(dataloader.dataset)
     model.eval()
 

@@ -6,12 +6,6 @@ import sqlite3 as db
 import pandas as pd
 import torch.nn as nn
 
-def load_sql_to_df(sql, db_filename):
-    con = db.connect(db_filename)
-    data_frame = pd.read_sql_query(sql, con)
-
-    return data_frame
-
 
 def add_padding_vector_to_embeddings(embeddings: torchtext.vocab.Vectors, padding_token="<PAD>"):
     embeddings.stoi = {token: index + 1 for token, index in embeddings.stoi.items()}
