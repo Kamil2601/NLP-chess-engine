@@ -4,6 +4,7 @@ import pandas as pd
 import io
 import numpy as np
 import sqlite3 as db
+import matplotlib.pyplot as plt
 
 def game_to_moves(game: chess.pgn.Game):
     return [(node.parent.board().fen(), node.parent.move, node.comment) for node in game.mainline()]
@@ -26,6 +27,13 @@ def load_sql_to_df(sql, db_filename):
     data_frame = pd.read_sql_query(sql, con)
 
     return data_frame
+
+def plot_history(history: dict):
+    for label, data in history.items():
+        plt.plot(data, label = label)
+        
+    plt.legend()
+    plt.show()
 
 
 

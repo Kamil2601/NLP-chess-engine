@@ -3,7 +3,7 @@ import torch
 import numpy as np
 
 
-def board_to_tensor(board: chess.Board, dim=-1):
+def board_to_tensor(board: chess.Board, dim=0):
     # KINGS - 1 layer
     kings = _pieces_tensor(board, chess.KING)
 
@@ -70,13 +70,13 @@ def _pieces_tensor(board, piece_type):
     return tensor
 
 
-def move_to_tensor(position_fen: str, move_uci: str, dim = -1):
+def move_to_tensor(position_fen: str, move_uci: str, dim = 0):
     board = chess.Board(position_fen)
     pre_move_tensor = board_to_tensor(board, dim)
 
     board.push_uci(move_uci)
     post_move_tensor = board_to_tensor(board, dim)
 
-    move_tensor = torch.concat([pre_move_tensor, post_move_tensor], dim=-1)
+    move_tensor = torch.concat([pre_move_tensor, post_move_tensor], dim=dim)
 
     return move_tensor
