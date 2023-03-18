@@ -70,11 +70,14 @@ def _pieces_tensor(board, piece_type):
     return tensor
 
 
-def move_to_tensor(position_fen: str, move_uci: str, dim = 0):
+def move_to_tensor(position_fen: str, move: str | chess.Move, dim = 0):
     board = chess.Board(position_fen)
     pre_move_tensor = board_to_tensor(board, dim)
 
-    board.push_uci(move_uci)
+    if type(move) == str:
+        board.push_uci(move)
+    else:
+        board.push(move)
     post_move_tensor = board_to_tensor(board, dim)
 
     move_tensor = torch.concat([pre_move_tensor, post_move_tensor], dim=dim)

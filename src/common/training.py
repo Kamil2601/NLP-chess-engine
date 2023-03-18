@@ -7,6 +7,7 @@ device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 _BCE_logits_mean = nn.BCEWithLogitsLoss(reduction="mean")
 _BCE_logits_sum = nn.BCEWithLogitsLoss(reduction="sum")
 
+
 def train_loop(train_dataloader, model, optimizer, test_dataloader = None, num_epochs = 10, verbose = False):
     train_loss_history = []
     train_accuracy_history = []
@@ -19,8 +20,6 @@ def train_loop(train_dataloader, model, optimizer, test_dataloader = None, num_e
 
         if verbose:
             print(f"Epoch {epoch+1}/{num_epochs}")
-        
-        if verbose:
             print(f"Train loss: {epoch_loss:>7f}, accuracy: {100*epoch_accuracy:>0.2f}%")
 
         train_loss_history.append(epoch_loss)
