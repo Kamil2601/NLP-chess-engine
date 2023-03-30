@@ -8,7 +8,7 @@ _BCE_logits_mean = nn.BCEWithLogitsLoss(reduction="mean")
 _BCE_logits_sum = nn.BCEWithLogitsLoss(reduction="sum")
 
 
-def train_loop(train_dataloader, model, optimizer, test_dataloader = None, num_epochs = 10, verbose = False):
+def train_loop(train_dataloader, model, optimizer, val_dataloader = None, num_epochs = 10, verbose = False):
     train_loss_history = []
     train_accuracy_history = []
 
@@ -25,11 +25,11 @@ def train_loop(train_dataloader, model, optimizer, test_dataloader = None, num_e
         train_loss_history.append(epoch_loss)
         train_accuracy_history.append(epoch_accuracy)
 
-        if test_dataloader:
-            epoch_loss, epoch_accuracy = test_model(test_dataloader, model, verbose=False)
+        if val_dataloader:
+            epoch_loss, epoch_accuracy = test_model(val_dataloader, model, verbose=False)
 
             if verbose:
-                print(f"Test loss:  {epoch_loss:>7f}, accuracy: {100*epoch_accuracy:>0.2f}%")
+                print(f"Val loss:  {epoch_loss:>7f}, accuracy: {100*epoch_accuracy:>0.2f}%")
 
             test_loss_history.append(epoch_loss)
             test_accuracy_history.append(epoch_accuracy)
@@ -40,9 +40,9 @@ def train_loop(train_dataloader, model, optimizer, test_dataloader = None, num_e
 
     history = {'train_loss': train_loss_history, 'train_accuracy': train_accuracy_history}
 
-    if test_dataloader:
-        history['test_loss'] = test_loss_history
-        history['test_accuracy'] = test_accuracy_history
+    if val_dataloader:
+        history['val_loss'] = test_loss_history
+        history['val_accuracy'] = test_accuracy_history
 
     return history
 
@@ -69,8 +69,7 @@ def train_one_epoch(dataloader, model, optimizer):
         correct += (pred == y).sum().item()
         epoch_loss += loss.item() * y.shape[0]
         
-        # if verbose:
-        #     print(f"epoch {epoch+1:>5}/{num_epochs}, loss: {epoch_loss/size:>7f}, accuracy: {100*correct/size:>0.2f}%")
+
     size = len(dataloader.dataset)
 
     return epoch_loss/size, correct/size

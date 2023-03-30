@@ -25,15 +25,26 @@ def games_to_moves(games: pd.DataFrame):
 def load_sql_to_df(sql, db_filename):
     con = db.connect(db_filename)
     data_frame = pd.read_sql_query(sql, con)
+    con.close()
 
     return data_frame
 
+def save_to_sql(df, db_filename, table_name, if_exists='fail'):
+    con = db.connect(db_filename)
+    df.to_sql(table_name, con, if_exists=if_exists)
+    con.close()
+    return
+
+
 def plot_history(history: dict):
-    for label, data in history.items():
-        plt.plot(data, label = label)
-        
-    plt.legend()
-    plt.show()
-
-
-
+    fig = plt.figure(figsize=(12, 3))
+    ax = fig.add_subplot(1, 2, 1)
+    plt.plot(history['train_loss'], '-o')
+    plt.plot(history['val_loss'], '--<')
+    plt.legend(['Train loss', 'Validation loss'], fontsize=10)
+    ax.set_xlabel('Epochs', size=15)
+    ax = fig.add_subplot(1, 2, 2)
+    plt.plot(history['train_accuracy'], '-o')
+    plt.plot(history['val_accuracy'], '-<')
+    plt.legend(['Train acc.', 'Validation acc.'], fontsize=10)
+    ax.set_xlabel('Epochs', size=15)

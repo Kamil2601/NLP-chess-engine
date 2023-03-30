@@ -113,14 +113,15 @@ def prepare_data_for_sentiment_analysis_training(df_moves: pd.DataFrame, vocab, 
     df_comments = add_comments_with_removed_quality_marks(df_comments, comment_col)
 
     # remove chess notation and some punctuation
-    df_comments[comment_col] = [remove_useless(com) for com in df_comments[comment_col]]
+    # df_comments[comment_col] = [remove_useless(com) for com in df_comments[comment_col]]
+    df_comments[comment_col] = [com.lower() for com in df_comments[comment_col]]
 
     # tokenize with Spacy
-    df_comments[comment_col] = spacy_tokenize(df_comments[comment_col], vocab, doc_to_tokens)
+    df_comments['preprocessed_comment'] = spacy_tokenize(df_comments[comment_col], vocab, doc_to_tokens)
 
-    df_comments = df_comments[df_comments[comment_col].map(len).between(min_len, max_len)]
+    df_comments = df_comments[df_comments['preprocessed_comment'].map(len).between(min_len, max_len)]
 
-    df_comments = shuffle_and_sort(df_comments, comment_col)
+    df_comments = shuffle_and_sort(df_comments, 'preprocessed_comment')
 
     return df_comments
 

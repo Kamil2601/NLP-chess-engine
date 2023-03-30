@@ -11,14 +11,17 @@ def _create_embedding_layer(weights_matrix, non_trainable=False):
     return emb_layer
 
 class SentimentAnalysisLSTM(nn.Module):
-    def __init__(self, embeddings: torchtext.vocab.Vectors, hidden_dim, num_layers = 2, dropout = 0.2):
+    def __init__(self, embeddings: torchtext.vocab.Vectors, hidden_dim, num_layers = 2, dropout = 0.2, bidirectional = False):
         super().__init__()
         
         self.embedding = _create_embedding_layer(embeddings.vectors, non_trainable=True)
 
-        self.lstm = nn.LSTM(input_size=embeddings.dim, hidden_size=hidden_dim, num_layers=num_layers, dropout=dropout, batch_first=True)
+        self.lstm = nn.LSTM(input_size=embeddings.dim, hidden_size=hidden_dim, num_layers=num_layers, dropout=dropout, batch_first=True, bidirectional=bidirectional)
 
-        self.fc = nn.Linear(hidden_dim, 1)
+        if bidirectional:
+            self.fc = nn.Linear(2*hidden_dim, 1)
+        else:
+            self.fc = nn.Linear(hidden_dim, 1)
         
         
     def forward(self, x):
