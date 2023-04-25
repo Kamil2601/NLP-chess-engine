@@ -1,6 +1,7 @@
 
 import torch
 import torch.nn as nn
+from IPython.display import clear_output
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
@@ -15,27 +16,44 @@ def train_loop(train_dataloader, model, optimizer, val_dataloader = None, num_ep
     test_loss_history = []
     test_accuracy_history = []
 
-    for epoch in range(num_epochs):
-        epoch_loss, epoch_accuracy = train_one_epoch(train_dataloader, model, optimizer)
-
-        if verbose:
-            print(f"Epoch {epoch+1}/{num_epochs}")
-            print(f"Train loss: {epoch_loss:>7f}, accuracy: {100*epoch_accuracy:>0.2f}%")
-
-        train_loss_history.append(epoch_loss)
-        train_accuracy_history.append(epoch_accuracy)
-
-        if val_dataloader:
-            epoch_loss, epoch_accuracy = test_model(val_dataloader, model, verbose=False)
+    best_val_acc = 0.0
+    best_epoch = None
+    try:
+        for epoch in range(num_epochs):
+            epoch_loss, epoch_accuracy = train_one_epoch(train_dataloader, model, optimizer)
 
             if verbose:
-                print(f"Val loss:  {epoch_loss:>7f}, accuracy: {100*epoch_accuracy:>0.2f}%")
+                print(f"Epoch {epoch+1}/{num_epochs}")
+                print(f"Train loss: {epoch_loss:>7f}, accuracy: {100*epoch_accuracy:>0.2f}%")
 
-            test_loss_history.append(epoch_loss)
-            test_accuracy_history.append(epoch_accuracy)
-        
+            train_loss_history.append(epoch_loss)
+            train_accuracy_history.append(epoch_accuracy)
+
+            if val_dataloader:
+                epoch_loss, epoch_accuracy = test_model(val_dataloader, model, verbose=False)
+
+                if verbose:
+                    print(f"Val loss:  {epoch_loss:>7f}, accuracy: {100*epoch_accuracy:>0.2f}%")
+
+                test_loss_history.append(epoch_loss)
+                test_accuracy_history.append(epoch_accuracy)
+
+                if best_val_acc < epoch_accuracy:
+                    best_epoch = epoch + 1
+                    best_val_acc = epoch_accuracy
+                    best_params = [p.detach().cpu() for p in model.parameters()]
+            
+            if verbose:
+                print("-----------------------------")
+    except KeyboardInterrupt:
+        pass
+
+    if best_params is not None:
         if verbose:
-            print("-----------------------------")
+            print(f"\nLoading best params on validation set (epoch {best_epoch}, accuracy: {100*best_val_acc:>0.2f}%)\n")
+        with torch.no_grad():
+            for param, best_param in zip(model.parameters(), best_params):
+                param[...] = best_param
         
 
     history = {'train_loss': train_loss_history, 'train_accuracy': train_accuracy_history}
