@@ -33,3 +33,4 @@ class SentimentAnalysisLSTM(nn.Module):
         logits = self.fc(last_lstm_output)
 
         return logits
+    

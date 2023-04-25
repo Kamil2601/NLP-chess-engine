@@ -113,8 +113,8 @@ def prepare_data_for_sentiment_analysis_training(df_moves: pd.DataFrame, vocab, 
     df_comments = add_comments_with_removed_quality_marks(df_comments, comment_col)
 
     # remove chess notation and some punctuation
-    # df_comments[comment_col] = [remove_useless(com) for com in df_comments[comment_col]]
-    df_comments[comment_col] = [com.lower() for com in df_comments[comment_col]]
+    df_comments[comment_col] = [remove_useless(com) for com in df_comments[comment_col]]
+    # df_comments[comment_col] = [com.lower() for com in df_comments[comment_col]]
 
     # tokenize with Spacy
     df_comments['preprocessed_comment'] = spacy_tokenize(df_comments[comment_col], vocab, doc_to_tokens)
@@ -129,6 +129,7 @@ def prepare_data_for_sentiment_analysis_training(df_moves: pd.DataFrame, vocab, 
 def prepare_data_for_sentiment_analysis_prediction(df_moves: pd.DataFrame, vocab, comment_col="comment", prep_comment_col="preprocessed_comment", doc_to_tokens = doc_to_lemma_tokens, min_len = 2, max_len = 100):
     # remove chess notation and some punctuation
     df_moves[prep_comment_col] = [remove_useless(com) for com in df_moves[comment_col]]
+    # df_moves[prep_comment_col] = [com.lower() for com in df_moves[comment_col]]
 
     # tokenize with Spacy
     df_moves[prep_comment_col] = spacy_tokenize(df_moves[prep_comment_col], vocab, doc_to_tokens)
