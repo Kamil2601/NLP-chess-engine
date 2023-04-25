@@ -34,7 +34,8 @@ Stockfish - ocena agenta
 Ocena reprezentacji - sieć neuronowa ucząca się funkcji stockfisha
 
 
-Sentiment analysis pipeline
-1. Wczytaj DataFrame z ruchami i komentarzami
-2. Utwórz kolumnę z przetworzonymi komentarzami (lista słów)
-3. 
+
+Co zrobić dalej:
+- przetestować model w porównaniu z losowym na większych danych
+- Overfitting: zrobić prostszą sieć
+- Wytrenować na większym zbiorze (sztucznych) danych
