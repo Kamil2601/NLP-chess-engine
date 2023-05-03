@@ -23,15 +23,15 @@ def board_to_tensor(board: chess.Board, dim=0):
     pawns = _pieces_tensor(board, chess.PAWN)
 
     # CASTLING RIGHTS - 4 layers
-    white_castle_king_side = torch.zeros((8,8)) + int(board.has_kingside_castling_rights(chess.WHITE))
-    white_castle_queen_side = torch.zeros((8,8)) + int(board.has_queenside_castling_rights(chess.WHITE))
+    white_castle_king_side = torch.zeros((8,8), dtype=torch.float16) + int(board.has_kingside_castling_rights(chess.WHITE))
+    white_castle_queen_side = torch.zeros((8,8), dtype=torch.float16) + int(board.has_queenside_castling_rights(chess.WHITE))
 
-    black_castle_king_side = torch.zeros((8,8)) - int(board.has_kingside_castling_rights(chess.BLACK))
-    black_castle_queen_side = torch.zeros((8,8)) - int(board.has_queenside_castling_rights(chess.BLACK))
+    black_castle_king_side = torch.zeros((8,8), dtype=torch.float16) - int(board.has_kingside_castling_rights(chess.BLACK))
+    black_castle_queen_side = torch.zeros((8,8), dtype=torch.float16) - int(board.has_queenside_castling_rights(chess.BLACK))
 
     # EN PASSANT - 2 layers
-    en_passant_white = torch.zeros((8,8))
-    en_passant_black = torch.zeros((8,8))
+    en_passant_white = torch.zeros((8,8), dtype=torch.float16)
+    en_passant_black = torch.zeros((8,8), dtype=torch.float16)
     if board.ep_square:
         if board.turn == chess.WHITE:
             en_passant_white[_square_to_tensor_indices(board.ep_square)] = 1
@@ -39,7 +39,7 @@ def board_to_tensor(board: chess.Board, dim=0):
             en_passant_black[_square_to_tensor_indices(board.ep_square)] = -1
 
     # WHICH MOVE - 1 layer
-    which_move = torch.zeros((8,8)) + (1 if board.turn == chess.WHITE else -1)
+    which_move = torch.zeros((8,8), dtype=torch.float16) + (1 if board.turn == chess.WHITE else -1)
 
     layers_list = [kings, queens, rooks, bishops, knights, pawns, white_castle_king_side, white_castle_queen_side,
                    black_castle_king_side, black_castle_queen_side, en_passant_white, en_passant_black, which_move]
@@ -52,7 +52,7 @@ def _square_to_tensor_indices(square):
     return rank, file
 
 def _pieces_tensor(board, piece_type):
-    tensor = torch.zeros((8, 8))
+    tensor = torch.zeros((8, 8), dtype=torch.float16)
     
     white_pieces_squares = board.pieces(piece_type, chess.WHITE)
 

@@ -11,7 +11,8 @@ def _move_to_tensor_tuple(move):
 
 class MoveAsTensorDataset(Dataset):
     def __init__(self, moves_df: pd.DataFrame, position_col="position", move_col="move", sentiment_col="sentiment"):
-        self.sentiments = [torch.tensor([s], dtype=torch.float32) for s in moves_df[sentiment_col]]
+        self.sentiments = [torch.tensor([s], dtype=torch.float16) for s in moves_df[sentiment_col]]
+        self.moves_df = moves_df
         moves_tuples = list(zip(moves_df[position_col], moves_df[move_col]))
         self.moves = list(map(_move_to_tensor_tuple, moves_tuples))
 

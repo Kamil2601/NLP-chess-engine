@@ -18,6 +18,7 @@ def train_loop(train_dataloader, model, optimizer, val_dataloader = None, num_ep
 
     best_val_acc = 0.0
     best_epoch = None
+    best_params = None
     try:
         for epoch in range(num_epochs):
             epoch_loss, epoch_accuracy = train_one_epoch(train_dataloader, model, optimizer)
@@ -66,15 +67,17 @@ def train_loop(train_dataloader, model, optimizer, val_dataloader = None, num_ep
 
 
 
-def train_one_epoch(dataloader, model, optimizer):
+def train_one_epoch(dataloader, model, optimizer, batch_log = 1000):
     model.train()
     epoch_loss = 0
     correct = 0
 
-    for (X, y) in dataloader:
+    n_batches = len(dataloader)
+
+    for i, (X, y) in enumerate(dataloader):
         # Compute prediction and loss
-        X = X.to(device)
-        y = y.to(device)
+        X = X.to(device, dtype=torch.float32)
+        y = y.to(device, dtype=torch.float32)
         out = model(X)
         loss = _BCE_logits_mean(out, y)
 
@@ -86,6 +89,9 @@ def train_one_epoch(dataloader, model, optimizer):
         pred = (out > 0)
         correct += (pred == y).sum().item()
         epoch_loss += loss.item() * y.shape[0]
+
+        if (i+1) % batch_log == 0:
+            print(f"[{i+1}/{n_batches}] loss: {loss.item()}")
         
 
     size = len(dataloader.dataset)
@@ -104,8 +110,8 @@ def test_model(dataloader, model, verbose = True):
 
     with torch.inference_mode():
         for X, y in dataloader:
-            X = X.to(device)
-            y = y.to(device)
+            X = X.to(device, dtype=torch.float32)
+            y = y.to(device, dtype=torch.float32)
 
             out = model(X)
             test_loss += loss_fn(out, y).item()
