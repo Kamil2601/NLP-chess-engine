@@ -3,6 +3,8 @@ import re
 import spacy
 from spacy.symbols import ORTH
 from sklearn.model_selection import train_test_split
+from langdetect import detect_langs, detect
+
 
 move_regex = re.compile("([Oo0](-[Oo0]){1,2}|[KQRBN]?[a-h]?[1-8]?[x-]?[a-h][1-8](\=[QRBN])?[+#]?[!?]*(\s(1-0|0-1|1\/2-1\/2))?)")
 numbered_move_regex = re.compile("\d+\.{1,3}\s*(__move__\s*){0,1}(__move__)")
@@ -18,6 +20,12 @@ move_token = "__move__"
 
 nlp.tokenizer.add_special_case(notation_token, [{ORTH: notation_token}])
 nlp.tokenizer.add_special_case(move_token, [{ORTH: move_token}])
+
+def is_english(text):
+    try:
+        return detect(text) == 'en'
+    except:
+        return False
 
 
 def replace_notation(comment: str):

@@ -2,11 +2,180 @@
 import torch
 import torch.nn as nn
 from IPython.display import clear_output
+import copy
+from common.utils import plot_history
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 _BCE_logits_mean = nn.BCEWithLogitsLoss(reduction="mean")
 _BCE_logits_sum = nn.BCEWithLogitsLoss(reduction="sum")
+
+
+class Trainer:
+    def __init__(
+        self,
+        model,
+        train_dataLoader,
+        optimizer,
+        loss_fn = _BCE_logits_mean,
+        val_dataLoader=None,
+        device=device,
+        x_dtype = None,
+        y_dtype = None
+    ) -> None:
+        self.model = model.to(device)
+        self.train_dataLoader = train_dataLoader
+        self.val_dataLoader = val_dataLoader
+        self.loss_fn = loss_fn
+        self.device = device
+        self.optimizer = optimizer
+        self.x_dtype = x_dtype
+        self.y_dtype = y_dtype
+
+        self.best_validation_accuracy = 0
+        self.best_epoch = 0
+
+        self.best_params = None
+        self.last_params = None
+        self.train_loss_history = []
+        self.validation_loss_history = []
+        self.train_acc_history = []
+        self.validation_acc_history = []
+
+    def loss_value(self, output, target):
+        loss = self.loss_fn(output, target)
+
+        return loss
+
+    def train_batch(self, input, target):
+        output = self.model(input)
+        loss = self.loss_value(output, target)
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        return output, loss.item()
+
+    def correct_classified(self, out, target):
+        pred = (out > 0)
+        correct = (pred == target).sum().item()
+
+        return correct
+
+    def train_one_epoch(self):
+        self.model.train()
+        epoch_loss = 0
+        correct = 0
+        # batch_losses = []
+
+
+        for input, target in self.train_dataLoader:
+            # print(len(input[0]),len(input[-1]))
+            input = input.to(self.device, dtype=self.x_dtype)
+            target = target.to(self.device, dtype=self.y_dtype)
+
+            output, batch_loss = self.train_batch(
+                input=input, target=target
+            )
+
+            epoch_loss += batch_loss * len(input)
+
+            correct += self.correct_classified(output, target)
+
+        size = len(self.train_dataLoader.dataset)
+
+        return epoch_loss/size, correct/size #, batch_losses
+
+    def validation(self, model = None, dataLoader = None):
+        if not dataLoader:
+            dataLoader = self.val_dataLoader
+
+        if not model:
+            model = self.model
+
+        size = len(dataLoader.dataset)
+        model.eval()
+
+        val_loss = 0
+        correct = 0
+
+        with torch.inference_mode():
+            for input, target in dataLoader:
+                input = input.to(self.device, dtype=self.x_dtype)
+                target = target.to(self.device, dtype=self.y_dtype)
+
+                output = model(input)
+                val_loss += self.loss_value(output, target).item() * len(input)
+                correct += self.correct_classified(output, target)
+
+            return val_loss / size, correct/size
+
+    
+
+    def train(self, num_epochs, verbose = True, load_best = False):
+        prev_epochs = len(self.train_loss_history)
+        all_epochs = prev_epochs + num_epochs
+
+        try:
+            for epoch in range(prev_epochs, all_epochs):
+                epoch_loss, epoch_accuracy = self.train_one_epoch()
+
+                if verbose:
+                    print(f"Epoch {epoch+1}/{all_epochs}")
+                    print(f"Train loss: {epoch_loss:>7f}, accuracy: {100*epoch_accuracy:>0.2f}%")
+
+                self.train_loss_history.append(epoch_loss)
+                self.train_acc_history.append(epoch_accuracy)
+
+                if self.val_dataLoader:
+                    epoch_loss, epoch_accuracy = self.validation()
+
+                    if verbose:
+                        print(f"Val loss:   {epoch_loss:>7f}, accuracy: {100*epoch_accuracy:>0.2f}%")
+
+                    self.validation_loss_history.append(epoch_loss)
+                    self.validation_acc_history.append(epoch_accuracy)
+
+                    if self.best_validation_accuracy < epoch_accuracy:
+                        self.best_epoch = epoch + 1
+                        self.best_validation_accuracy = epoch_accuracy
+                        self.best_params = [p.detach().cpu() for p in self.model.parameters()]
+                
+                if verbose:
+                    print("-----------------------------")
+
+        except KeyboardInterrupt:
+            pass
+
+        # if load_best and self.best_params:
+        #     if verbose:
+        #         print(f"\nLoading best params on validation set (epoch {best_epoch}, accuracy: {100*best_val_acc:>0.2f}%)\n")
+        #     with torch.no_grad():
+        #         for param, best_param in zip(self.model.parameters(), best_params):
+        #             param[...] = best_param
+
+    def best_model(self, verbose = True):
+        if verbose:
+            print(f"\nLoading best params on validation set (epoch {self.best_epoch}, accuracy: {100*self.best_validation_accuracy:>0.2f}%)\n")
+
+        best_model = copy.deepcopy(self.model)
+        with torch.no_grad():
+            for param, best_param in zip(best_model.parameters(), self.best_params):
+                param[...] = best_param
+
+        return best_model
+
+    def plot_history(self):
+        history = {'train_loss': self.train_loss_history, 'train_accuracy': self.train_acc_history}
+
+        if self.val_dataLoader:
+            history['val_loss'] = self.validation_loss_history
+            history['val_accuracy'] = self.validation_acc_history
+
+        plot_history(history)
+
+
 
 
 def train_loop(train_dataloader, model, optimizer, val_dataloader = None, num_epochs = 10, verbose = False):
@@ -72,7 +241,6 @@ def train_one_epoch(dataloader, model, optimizer, batch_log = 1000):
     epoch_loss = 0
     correct = 0
 
-    n_batches = len(dataloader)
 
     for i, (X, y) in enumerate(dataloader):
         # Compute prediction and loss
@@ -89,9 +257,6 @@ def train_one_epoch(dataloader, model, optimizer, batch_log = 1000):
         pred = (out > 0)
         correct += (pred == y).sum().item()
         epoch_loss += loss.item() * y.shape[0]
-
-        if (i+1) % batch_log == 0:
-            print(f"[{i+1}/{n_batches}] loss: {loss.item()}")
         
 
     size = len(dataloader.dataset)
