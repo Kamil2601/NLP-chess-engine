@@ -17,6 +17,7 @@ class Trainer:
         model,
         train_dataLoader,
         optimizer,
+        scheduler = None,
         loss_fn = _BCE_logits_mean,
         val_dataLoader=None,
         device=device,
@@ -29,6 +30,7 @@ class Trainer:
         self.loss_fn = loss_fn
         self.device = device
         self.optimizer = optimizer
+        self.scheduler = scheduler
         self.x_dtype = x_dtype
         self.y_dtype = y_dtype
 
@@ -145,6 +147,9 @@ class Trainer:
                 if verbose:
                     print("-----------------------------")
 
+                if self.scheduler:
+                    self.scheduler.step()
+
         except KeyboardInterrupt:
             pass
 
@@ -159,7 +164,9 @@ class Trainer:
         if verbose:
             print(f"\nLoading best params on validation set (epoch {self.best_epoch}, accuracy: {100*self.best_validation_accuracy:>0.2f}%)\n")
 
+        self.model.cpu()
         best_model = copy.deepcopy(self.model)
+        best_model.cpu()
         with torch.no_grad():
             for param, best_param in zip(best_model.parameters(), self.best_params):
                 param[...] = best_param

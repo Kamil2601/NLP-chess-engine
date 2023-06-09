@@ -139,3 +139,6 @@ data/
 
 # Downloaded pretrained embeddings
 .vector_cache
+
+# saved models
+models

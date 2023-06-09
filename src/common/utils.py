@@ -56,3 +56,4 @@ def plot_history(history: dict):
     plt.plot(history['val_accuracy'])
     plt.legend(['Train acc.', 'Validation acc.'], fontsize=10)
     ax.set_xlabel('Epochs', size=15)
+    plt.show()
