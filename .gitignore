@@ -141,4 +141,4 @@ data/
 .vector_cache
 
 # saved models
-models
+/models
