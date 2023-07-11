@@ -49,8 +49,13 @@ def _pieces_tensor(board, tensor, piece_type):
         tensor[rank][file] = -1
 
 
-def move_to_numpy(position_fen: str, move: str | chess.Move, dim=0):
-    board = chess.Board(position_fen)
+def move_to_numpy(board: str | chess.Board, move: str | chess.Move, dim=0):
+
+    if isinstance(board, str):
+        board = chess.Board(board)
+    else:
+        board = board.copy()
+
     pre_move_tensor = board_to_numpy(board, dim)
 
     if isinstance(move, str):
@@ -64,7 +69,7 @@ def move_to_numpy(position_fen: str, move: str | chess.Move, dim=0):
     return move_tensor
 
 
-def move_to_tensor(position_fen: str, move: str | chess.Move, dim=0):
+def move_to_tensor(position_fen: str | chess.Board, move: str | chess.Move, dim=0, dtype=torch.float16):
     move_numpy = move_to_numpy(position_fen, move, dim=dim)
 
-    return torch.from_numpy(move_numpy)
+    return torch.from_numpy(move_numpy).to(dtype)
