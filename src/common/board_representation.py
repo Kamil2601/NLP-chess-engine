@@ -2,13 +2,24 @@ import numpy as np
 import chess
 import torch
 
+piece_channel = {chess.KING: 0, chess.QUEEN: 1, chess.ROOK: 2, chess.BISHOP: 3, chess.KNIGHT: 5, chess.PAWN: 5}
+
 def board_to_numpy(board: chess.Board, dim=0, dtype=np.float16):
     tensor = np.zeros((13, 8, 8), dtype=dtype)
 
-    piece_types = [chess.KING, chess.QUEEN, chess.ROOK, chess.BISHOP, chess.KNIGHT, chess.PAWN]
+    # piece_types = [chess.KING, chess.QUEEN, chess.ROOK, chess.BISHOP, chess.KNIGHT, chess.PAWN]
 
-    for idx, piece_type in enumerate(piece_types):
-        _pieces_tensor(board, tensor[idx], piece_type)
+    # for idx, piece_type in enumerate(piece_types):
+    #     _pieces_tensor(board, tensor[idx], piece_type)
+
+    for square in chess.SQUARES:
+        piece = board.piece_at(square)
+        if piece:
+            rank, file = 7 - chess.square_rank(square), chess.square_file(square)
+            if piece.color == chess.WHITE:
+                tensor[piece_channel[piece.piece_type], rank, file] = 1
+            else:
+                tensor[piece_channel[piece.piece_type], rank, file] = -1
 
     white_castle_king_side = int(board.has_kingside_castling_rights(chess.WHITE))
     white_castle_queen_side = int(board.has_queenside_castling_rights(chess.WHITE))

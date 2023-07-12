@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
 import chess
-import common.board_representation as br
+import common.board_representation_2 as br
 import numpy as np
 import random
+from more_itertools import partition
 
 class Agent:
     def __init__(self) -> None:
@@ -57,7 +58,7 @@ class RandomAgent(Agent):
 
 
 class MinimaxAgent(Agent):
-    def __init__(self, model: nn.Module, max_depth, min_coef = 0.5) -> None:
+    def __init__(self, model: nn.Module, max_depth, min_coef = 0.5, decay = 0.5) -> None:
         super().__init__()
         self.model = model
         self.model.cuda()
@@ -66,6 +67,7 @@ class MinimaxAgent(Agent):
         self.max_depth = max_depth
         self.move_scores = {}
         self.min_coef = min_coef
+        self.decay = decay
     
 
     def play(self, board: chess.Board):
@@ -78,7 +80,7 @@ class MinimaxAgent(Agent):
 
         for move, move_score in legal_moves_scores:
             board.push(move)
-            eval_score = move_score + self.minimax_alpha_beta(board, self.max_depth - 1, alpha, beta, False)
+            eval_score = move_score + self.decay * self.minimax_alpha_beta(board, self.max_depth - 1, alpha, beta, False)
             board.pop()
             if eval_score > max_eval or best_move == None:
                 max_eval = eval_score
@@ -103,7 +105,7 @@ class MinimaxAgent(Agent):
             max_eval = float('-inf')
             for move, move_score in legal_moves_scores:
                 board.push(move)
-                eval_score = move_score + self.minimax_alpha_beta(board, depth - 1, alpha, beta, False)
+                eval_score = move_score + self.decay * self.minimax_alpha_beta(board, depth - 1, alpha, beta, False)
                 board.pop()
                 max_eval = max(max_eval, eval_score)
                 alpha = max(alpha, eval_score)
@@ -114,7 +116,7 @@ class MinimaxAgent(Agent):
             min_eval = float('inf')
             for move, move_score in legal_moves_scores:
                 board.push(move)
-                eval_score = -self.min_coef*move_score + self.minimax_alpha_beta(board, depth - 1, alpha, beta, True)
+                eval_score = -self.min_coef*move_score + self.decay * self.minimax_alpha_beta(board, depth - 1, alpha, beta, True)
                 board.pop()
                 min_eval = min(min_eval, eval_score)
                 beta = min(beta, eval_score)
@@ -123,8 +125,8 @@ class MinimaxAgent(Agent):
             return min_eval
 
     def move_eval(self, board, move):
-        fen = board.fen()
-        key = move_key(fen, move.uci())
+        epd = board.epd()
+        key = epd + move.uci()
 
         if key in self.move_scores:
             return self.move_scores[key]
@@ -161,9 +163,8 @@ class MinimaxAgent(Agent):
 
 
 
-def move_key(position, move):
-    split = position.split(' ')
-    return ' '.join(split[:4] + [move])
+def move_key(board: chess.Board, move: chess.Move):
+    return (board.epd(), move.uci())
 
 
 

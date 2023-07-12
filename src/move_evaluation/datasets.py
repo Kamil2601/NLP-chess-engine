@@ -1,6 +1,6 @@
 from torch.utils.data import Dataset
 import torch
-from common.board_representation import move_to_tensor
+from common.board_representation_2 import move_to_tensor
 import pandas as pd
 import multiprocessing as mp
 
