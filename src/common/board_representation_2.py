@@ -92,7 +92,61 @@ def get_chess_representation(board, move):
     return representation
 
 
-def move_to_tensor(board, move, tensor = None):
+def board_to_numpy(board: chess.Board):
+    # Create an empty 26x8x8 representation
+    representation = np.zeros((13, 8, 8), dtype=np.float16)
+
+    # Define piece mapping for indexing the channels
+    piece_mapping = {
+        chess.PAWN: 0,
+        chess.KNIGHT: 1,
+        chess.BISHOP: 2,
+        chess.ROOK: 3,
+        chess.QUEEN: 4,
+        chess.KING: 5
+    }
+
+    # Iterate over each square on the board
+    for rank in range(8):
+        for file in range(8):
+            square = chess.square(file, rank)
+            piece = board.piece_at(square)
+
+            if piece is not None:
+                # Get the channel index based on the piece type
+                piece_index = piece_mapping[piece.piece_type]
+
+                # Set +1 for white pieces, -1 for black pieces
+                if piece.color == chess.WHITE:
+                    representation[piece_index, rank, file] = 1
+                else:
+                    representation[piece_index, rank, file] = -1
+
+    # Set the channel for the side to move
+    representation[12, :, :] = -1 if board.turn == chess.BLACK else 1
+
+    # Set the channels for castle rights
+    castle_rights = board.castling_rights
+    if castle_rights & chess.BB_H1:
+        representation[6, 7, 7] = 1  # White kingside
+    if castle_rights & chess.BB_A1:
+        representation[7, 7, 0] = 1  # White queenside
+    if castle_rights & chess.BB_H8:
+        representation[8, 0, 7] = 1  # Black kingside
+    if castle_rights & chess.BB_A8:
+        representation[9, 0, 0] = 1  # Black queenside
+
+    # Set the channel for en passant possibility
+    if board.ep_square is not None:
+        ep_file = chess.square_file(board.ep_square)
+        ep_rank = chess.square_rank(board.ep_square)
+        representation[10, ep_rank, ep_file] = 1
+
+    return representation
+
+
+
+def move_to_tensor(board, move, dtype=torch.float16):
     if isinstance(board, str):
         board = chess.Board(board)
 
@@ -100,8 +154,20 @@ def move_to_tensor(board, move, tensor = None):
         move = chess.Move.from_uci(move)
         
     representation = get_chess_representation(board, move)
-    representation_tensor = torch.from_numpy(representation)
+    representation_tensor = torch.from_numpy(representation).to(dtype)
 
     return representation_tensor
 
 
+def next_positions(board: chess.Board, moves = None):
+    ret = []
+    
+    if not moves:
+        moves = board.legal_moves
+
+    for move in moves:
+        new_board = board.copy()
+        new_board.push(move)
+        ret.append(new_board)
+
+    return ret

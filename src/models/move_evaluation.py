@@ -27,6 +27,37 @@ class SentimateNet(nn.Module):
         x = self.fc_layers(x)
         return x
 
+class SentimateNetWithBatchNorm(nn.Module):
+    def __init__(self, dropout = 0.25) -> None:
+        super().__init__()
+
+        self.conv_layers = nn.Sequential(
+            nn.Conv2d(26, 26, 5, padding='same'),
+            nn.BatchNorm2d(26),
+            nn.Dropout(dropout),
+            nn.Conv2d(26, 26, 3, padding='same'),
+            nn.BatchNorm2d(26),
+            nn.Flatten()
+        )
+
+        self.fc_layers = nn.Sequential(
+            nn.Dropout(dropout),
+            nn.Linear(8*8*26, 500),
+            nn.BatchNorm1d(500),
+            nn.ELU(),
+            nn.Dropout(dropout),
+            nn.Linear(500, 200),
+            nn.LazyBatchNorm1d(200),
+            nn.ELU(),
+            nn.Dropout(dropout),
+            nn.Linear(200, 1)
+        )
+
+    def forward(self, x):
+        x = self.conv_layers(x)
+        x = self.fc_layers(x)
+        return x
+
 
 class SentimateNetSmaller(nn.Module):
     def __init__(self, dropout = 0.25) -> None:

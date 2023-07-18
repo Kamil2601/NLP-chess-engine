@@ -50,10 +50,9 @@ class Trainer:
         return loss
 
     def train_batch(self, input, target):
+        self.optimizer.zero_grad()
         output = self.model(input)
         loss = self.loss_value(output, target)
-
-        self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
@@ -102,7 +101,7 @@ class Trainer:
         val_loss = 0
         correct = 0
 
-        with torch.inference_mode():
+        with torch.no_grad():
             for input, target in dataLoader:
                 input = input.to(self.device, dtype=self.x_dtype)
                 target = target.to(self.device, dtype=self.y_dtype)
@@ -280,7 +279,7 @@ def test_model(dataloader, model, verbose = True):
 
     test_loss, correct = 0, 0
 
-    with torch.inference_mode():
+    with torch.no_grad():
         for X, y in dataloader:
             X = X.to(device, dtype=torch.float32)
             y = y.to(device, dtype=torch.float32)
@@ -310,7 +309,7 @@ def test_high_confidence(dataloader, model, low_boundary = 0.3, high_boundary = 
 
     high_conf_count = 0
 
-    with torch.inference_mode():
+    with torch.no_grad():
         for X,y in dataloader:
             X = X.to(device)
             y = y.to(device)

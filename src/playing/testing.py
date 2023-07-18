@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import playing.agents as agents
 from tqdm import tqdm
+from IPython.display import display
 
 engine = chess.engine.SimpleEngine.popen_uci("stockfish")
 
@@ -63,6 +64,7 @@ def play_game(white: agents.Agent, black: agents.Agent, n_moves = 40, verbose = 
             board.push(move)
 
             if verbose:
+                # print(board.fen())
                 display(board)
 
     return board
@@ -77,12 +79,13 @@ def simple_result(board, time = 1):
     return 1
 
 
-def test_agent(model_agent, n_games = 50, n_moves = 40, time = 1):
-    random_agent = agents.RandomAgent()
+def test_agent(agent, opponent = None, n_games = 50, n_moves = 40, time = 1):
+    if not opponent:
+        opponent = agents.RandomAgent()
     results = []
 
-    white = model_agent
-    black = random_agent
+    white = agent
+    black = opponent
     model_white = 1
 
 
@@ -97,4 +100,4 @@ def test_agent(model_agent, n_games = 50, n_moves = 40, time = 1):
 
     stats = Counter(results)
 
-    return {"model_better": stats[1], "random_better": stats[-1], "draw": stats[0]}
+    return {"agent_win": stats[1], "opponent_win": stats[-1], "draw": stats[0]}
