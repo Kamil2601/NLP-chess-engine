@@ -40,13 +40,13 @@ def get_chess_representation(board, move):
     # Set the channels for castle rights
     castle_rights = board.castling_rights
     if castle_rights & chess.BB_H1:
-        representation[6, 7, 7] = 1  # White kingside
+        representation[6, :, :] = 1  # White kingside
     if castle_rights & chess.BB_A1:
-        representation[7, 7, 0] = 1  # White queenside
+        representation[7, :, :] = 1  # White queenside
     if castle_rights & chess.BB_H8:
-        representation[8, 0, 7] = 1  # Black kingside
+        representation[8, :, :] = -1  # Black kingside
     if castle_rights & chess.BB_A8:
-        representation[9, 0, 0] = 1  # Black queenside
+        representation[9, :, :] = -1  # Black queenside
 
     # Set the channel for en passant possibility
     if board.ep_square is not None:
@@ -75,13 +75,13 @@ def get_chess_representation(board, move):
     # Set the channels for castle rights in the new position
     new_castle_rights = temp_board.castling_rights
     if new_castle_rights & chess.BB_H1:
-        representation[11, 7, 7] = 1  # White kingside
+        representation[11, :, :] = 1  # White kingside
     if new_castle_rights & chess.BB_A1:
-        representation[12, 7, 0] = 1  # White queenside
+        representation[12, :, :] = 1  # White queenside
     if new_castle_rights & chess.BB_H8:
-        representation[13, 0, 7] = 1  # Black kingside
+        representation[13, :, :] = -1  # Black kingside
     if new_castle_rights & chess.BB_A8:
-        representation[14, 0, 0] = 1  # Black queenside
+        representation[14, :, :] = -1  # Black queenside
 
     # Set the channel for en passant possibility in the new position
     if temp_board.ep_square is not None:
@@ -128,13 +128,13 @@ def board_to_numpy(board: chess.Board):
     # Set the channels for castle rights
     castle_rights = board.castling_rights
     if castle_rights & chess.BB_H1:
-        representation[6, 7, 7] = 1  # White kingside
+        representation[6, :, :] = 1  # White kingside
     if castle_rights & chess.BB_A1:
-        representation[7, 7, 0] = 1  # White queenside
+        representation[7, :, :] = 1  # White queenside
     if castle_rights & chess.BB_H8:
-        representation[8, 0, 7] = 1  # Black kingside
+        representation[8, :, :] = -1  # Black kingside
     if castle_rights & chess.BB_A8:
-        representation[9, 0, 0] = 1  # Black queenside
+        representation[9, :, :] = -1  # Black queenside
 
     # Set the channel for en passant possibility
     if board.ep_square is not None:

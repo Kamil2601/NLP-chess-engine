@@ -256,21 +256,18 @@ class MiniMaxPositionEvalAgent(Agent):
             
         move_scores = []
         
-        for move in possible_moves:
-            move_score = 0
+        def move_score(move):
+            res = 0
             
             if board.is_capture(move):
-                move_score = piece_value[board.piece_type_at(move.to_square)] - piece_value[board.piece_type_at(move.from_square)]
+                res = piece_value[board.piece_type_at(move.to_square)]
                 
             if move.promotion:
-                move_score += piece_value[move.promotion]
+                res += piece_value[move.promotion]
                 
-                
-            move_scores.append(move_score)
+            return res
             
-        return [move for score, move in sorted(zip(move_scores, possible_moves), key=lambda x: x[0], reverse=True)]
-        # return [move for _, move in np.stable_sort(zip(move_scores, possible_moves), key=lambda x: x[0], kind='mergesort', order='F')]
-
+        return sorted(possible_moves, key=move_score, reverse=True)
 
 
     def minimax_alpha_beta(self, board: chess.Board, depth, alpha, beta, maximizing_player):       
@@ -278,7 +275,8 @@ class MiniMaxPositionEvalAgent(Agent):
             return self.game_over_result(board, maximizing_player)
 
         if depth == 0:
-            # return self.search_captures(board, alpha, beta, maximizing_player)
+            if board.move_stack:
+                return self.search_captures(board, alpha, beta, maximizing_player, square=board.peek().to_square)
             return self.eval_position(board, maximizing_player)
         
         possible_moves = self.order_legal_moves(board)
@@ -311,7 +309,7 @@ class MiniMaxPositionEvalAgent(Agent):
         if board.is_game_over():
             return self.game_over_result(board, maximizing_player)
         
-        captures = self.order_legal_moves(board, only_captures=True)
+        captures = self.order_legal_moves(board, only_captures=True, square = square)
         
         if not captures:
             return self.eval_position(board, maximizing_player)
@@ -321,7 +319,7 @@ class MiniMaxPositionEvalAgent(Agent):
             max_eval = float('-inf')
             for move in captures:
                 board.push(move)
-                eval_score = self.search_captures(board, alpha, beta, False)
+                eval_score = self.search_captures(board, alpha, beta, False, square=square)
                 board.pop()
                 max_eval = max(max_eval, eval_score)
                 alpha = max(alpha, eval_score)
@@ -332,7 +330,7 @@ class MiniMaxPositionEvalAgent(Agent):
             min_eval = float('inf')
             for move in captures:
                 board.push(move)
-                eval_score = self.search_captures(board, alpha, beta, True)
+                eval_score = self.search_captures(board, alpha, beta, True, square=square)
                 board.pop()
                 min_eval = min(min_eval, eval_score)
                 beta = min(beta, eval_score)
