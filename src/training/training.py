@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from IPython.display import clear_output
 import copy
-from common.utils import plot_history
+from utils.utils import plot_history
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 

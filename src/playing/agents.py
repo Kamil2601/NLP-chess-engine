@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import chess
-import common.board_representation_2 as br
+import board_representation.board_representation_2 as br
 import numpy as np
 import random
 from more_itertools import partition

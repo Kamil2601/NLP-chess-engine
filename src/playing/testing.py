@@ -6,6 +6,8 @@ import torch.nn as nn
 import playing.agents as agents
 from tqdm import tqdm
 from IPython.display import display
+import board_representation as br
+import random
 
 engine = chess.engine.SimpleEngine.popen_uci("stockfish")
 
