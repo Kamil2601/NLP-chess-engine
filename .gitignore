@@ -142,3 +142,6 @@ data/
 
 # saved models
 /models
+
+# lightning logs
+/lightning_logs

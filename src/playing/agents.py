@@ -14,14 +14,15 @@ class Agent:
         pass
 
 class ModelAgent(Agent):
-    def __init__(self, model) -> None:
+    def __init__(self, model, convert_fn = br.move_to_tensor) -> None:
         super().__init__()
         self.model = model
         self.model_device = next(iter(model.parameters())).device
         self.model_dtype = next(iter(model.parameters())).dtype
+        self.convert_fn = convert_fn
 
     def batch_legal_moves(self, board: chess.Board):
-        move_tensors = [br.move_to_tensor(board.fen(), move) for move in board.legal_moves]
+        move_tensors = [self.convert_fn(board.fen(), move) for move in board.legal_moves]
         return torch.stack(move_tensors)
 
     def play(self, board: chess.Board):
@@ -340,7 +341,7 @@ class MiniMaxPositionEvalAgent(Agent):
         
 
 class MiniMaxPositionEvalModelAgent(MiniMaxPositionEvalAgent):
-    def __init__(self, model: nn.Module, max_depth):
+    def __init__(self, model: nn.Module, max_depth, move_to_input_fn):
         super().__init__(max_depth)
         self.model = model
         self.model.cuda()

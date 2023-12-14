@@ -1,5 +1,6 @@
 import chess
 import numpy as np
+import torch
 
 def board_to_input(board, array=None):
     piece_to_index = {'p': 0, 'n': 1, 'b': 2, 'r': 3, 'q': 4, 'k': 5,
@@ -23,7 +24,13 @@ def board_to_input(board, array=None):
 
     return input_representation
 
-def convert_move(board, move):
+def move_to_numpy(board, move, dtype=np.float16):
+    if isinstance(board, str):
+        board = chess.Board(board)
+
+    if isinstance(move, str):
+        move = chess.Move.from_uci(move)
+
     # Make the move on a copy of the board to get the pre- and post-move representations
     board_copy = board.copy()
     board_copy.push(move)
@@ -37,3 +44,7 @@ def convert_move(board, move):
     # final_representation = np.concatenate((pre_move_representation, post_move_representation), axis=2)
 
     return final_representation
+
+
+def move_to_tensor(board, move, dtype=torch.float16):
+    return torch.from_numpy(move_to_numpy(board, move, dtype=dtype)).to(dtype=dtype)
