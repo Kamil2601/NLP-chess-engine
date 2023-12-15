@@ -23,8 +23,10 @@ def games_to_moves_gameknot(games: pd.DataFrame):
 
 def games_to_moves(games: list):
     moves_list = []
-    for pgn in games:
-        game_moves = annotated_moves(chess.pgn.read_game(io.StringIO(pgn)))
+    for game in games:
+        if isinstance(game, str):
+            game = chess.pgn.read_game(io.StringIO(game))
+        game_moves = annotated_moves(game)
         moves_list += game_moves
 
     return pd.DataFrame(moves_list, columns=["position", "move", "comment", "halfmove_number"])
