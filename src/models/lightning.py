@@ -1,13 +1,15 @@
+from typing import Any
 import torch.nn as nn
 import pytorch_lightning as pl
 from torchmetrics import Accuracy
 import torch
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, DataCollatorWithPadding
 
 
 class LitHuggingfaceClassifier(pl.LightningModule):
-    def __init__(self, model, learning_rate=2e-5, weight_decay=0.0):
+    def __init__(self, checkpoint, learning_rate=2e-5, weight_decay=0.0):
         super().__init__()
-        self.model = model
+        self.model = AutoModelForSequenceClassification.from_pretrained(checkpoint, num_labels=2)
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
 
@@ -48,18 +50,15 @@ class LitHuggingfaceClassifier(pl.LightningModule):
         logits = outputs.logits
         loss = outputs.loss
 
-        # preds = torch.argmax(logits, dim=-1)
-
         y = batch["labels"]
         self.valid_acc_micro.update(logits, y)
         self.valid_acc_macro.update(logits, y)
-        # acc_micro = self.valid_acc_micro(preds, y)
-        # acc_macro = self.valid_acc_macro(preds, y)
         self.log("valid_loss", loss, prog_bar=True)
-        # self.log("valid_acc_micro", acc_micro, prog_bar=True)
-        # self.log("valid_acc_macro", acc_macro, prog_bar=True)
-        # self.log("valid_acc_micro", self.valid_acc_micro.compute(), prog_bar=True)
-        # self.log("valid_acc_macro", self.valid_acc_macro.compute(), prog_bar=True)
+
+    def predict_step(self, batch, batch_idx) -> Any:
+        outputs = self.model(**batch)
+        logits = outputs.logits
+        return torch.argmax(logits, dim=-1)
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)

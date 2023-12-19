@@ -51,3 +51,7 @@ Co zrobić dalej:
   - Tak jak w oryginalnym Sentimate czyli softmax dla n=2
   - Ocena z zakresu [-1, 1] jak w AlphaZero
 - Przepisać alpha-beta search do wersji takiej jak w pracy: zwracać najlepszy ruch i ocenę na każdej głębokości
+
+
+#### Modele do analizy komentarzy
+- distilbert-base-multilingual-cased
