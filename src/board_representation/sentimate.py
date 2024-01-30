@@ -8,7 +8,7 @@ def board_to_input(board, array=None):
 
     # Initialize the 8x8x12 representation
     if array is None:
-        input_representation = np.zeros((13, 8, 8), dtype=np.int8)
+        input_representation = np.zeros((13, 8, 8))
     else:
         input_representation = array
 
@@ -24,7 +24,7 @@ def board_to_input(board, array=None):
 
     return input_representation
 
-def move_to_numpy(board, move, dtype=np.float16):
+def move_to_numpy(board, move, dtype=np.float32):
     if isinstance(board, str):
         board = chess.Board(board)
 
@@ -35,7 +35,7 @@ def move_to_numpy(board, move, dtype=np.float16):
     board_copy = board.copy()
     board_copy.push(move)
 
-    final_representation = np.zeros((26, 8, 8), dtype=np.int8)
+    final_representation = np.zeros((26, 8, 8), dtype=dtype)
 
     pre_move_representation = board_to_input(board, array=final_representation)
     post_move_representation = board_to_input(board_copy, array=final_representation[13:])
@@ -47,4 +47,4 @@ def move_to_numpy(board, move, dtype=np.float16):
 
 
 def move_to_tensor(board, move, dtype=torch.float16):
-    return torch.from_numpy(move_to_numpy(board, move, dtype=dtype)).to(dtype=dtype)
+    return torch.from_numpy(move_to_numpy(board, move)).to(dtype=dtype)

@@ -7,7 +7,7 @@ from IPython.display import clear_output
 
 
 class HuggingFaceTokenizedDataModule(pl.LightningDataModule):
-    def __init__(self, checkpoint, batch_size = 8, dataset_path = "~/Projects/Master-Thesis/data/datasets/chess_comments/"):
+    def __init__(self, checkpoint, batch_size = 8, dataset_path = "~/Projects/Master-Thesis/data/datasets/comments_with_color/"):
         super().__init__()
         self.checkpoint = checkpoint
         self.sampler = None
@@ -17,18 +17,21 @@ class HuggingFaceTokenizedDataModule(pl.LightningDataModule):
 
     def setup(self, stage=None):
         self.tokenizer = AutoTokenizer.from_pretrained(self.checkpoint)
+
         self.data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer)
         self.raw_datasets = load_from_disk(self.dataset_path)
 
-        tokenize_function = lambda example: self.tokenizer(example["comment"], truncation=True)
+        tokenize_function = lambda example: self.tokenizer(example["color_comment"], truncation=True)
 
         self.tokenized_datasets = self.raw_datasets.map(tokenize_function, batched=True)
 
         clear_output(wait=True)
 
-        self.tokenized_datasets = self.tokenized_datasets.remove_columns(["comment"])
+        self.tokenized_datasets = self.tokenized_datasets.remove_columns(["fen", "move", "comment", "color_comment"])
         self.tokenized_datasets = self.tokenized_datasets.rename_column("sentiment", "labels")
         self.tokenized_datasets.set_format("torch")
+
+        # print(self.tokenized_datasets)
 
 
         self.train_dataset = self.tokenized_datasets["train"]

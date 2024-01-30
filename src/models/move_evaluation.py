@@ -1,7 +1,7 @@
 import torch.nn as nn
 
 class SentimateNet(nn.Module):
-    def __init__(self, dropout = 0.25) -> None:
+    def __init__(self, dropout = 0.25, output_size = 2) -> None:
         super().__init__()
 
         self.conv_layers = nn.Sequential(
@@ -19,7 +19,7 @@ class SentimateNet(nn.Module):
             nn.Linear(500, 200),
             nn.ELU(),
             nn.Dropout(dropout),
-            nn.Linear(200, 1)
+            nn.Linear(200, output_size)
         )
 
     def forward(self, x):
