@@ -86,13 +86,20 @@ class PLClassifierModel(pl.LightningModule):
 
     def forward(self, x):
         return self.model(x)
+    
+    def _loss_function(self, logits, labels):
+        if logits.shape[-1] == 1:
+            return F.binary_cross_entropy_with_logits(logits, labels)
+        else:
+            return F.cross_entropy(logits, labels)
 
     def training_step(self, batch, batch_idx):
         inputs, labels = batch["input"], batch["label"]
         logits = self(inputs)
 
         preds = torch.argmax(logits, dim=-1)
-        loss = F.cross_entropy(logits, labels)
+
+        loss = self._loss_function(logits, labels)
 
         self.train_acc.update(preds, labels)
         self.log("train_loss", loss, prog_bar=True)
@@ -116,7 +123,7 @@ class PLClassifierModel(pl.LightningModule):
         logits = self(inputs)
 
         preds = torch.argmax(logits, dim=-1)
-        loss = F.cross_entropy(logits, labels)
+        loss = self._loss_function(logits, labels)
 
         self.valid_acc_micro.update(preds, labels)
         self.valid_acc_macro.update(preds, labels)

@@ -1,9 +1,11 @@
 import pytorch_lightning as pl
+from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, DataCollatorWithPadding
-from datasets import load_from_disk
+from datasets import load_from_disk, Dataset
 from .samplers import BySequenceLengthBatchSampler2
 from IPython.display import clear_output
+import torch
 
 
 class HuggingFaceTokenizedDataModule(pl.LightningDataModule):
@@ -51,3 +53,26 @@ class HuggingFaceTokenizedDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return DataLoader(self.test, batch_size=self.eval_batch_size, collate_fn=self.data_collator)
+    
+
+class MoveEvaluationDataModule(pl.LightningDataModule):
+    def __init__(self, batch_size, dataset_path = "~/Projects/Master-Thesis/data/huggingface/my_datasets/sentimate_v1_with_tensors/") -> None:
+        super().__init__()
+        self.batch_size = batch_size
+        self.dataset_path = dataset_path
+
+    def setup(self, stage=None):
+        dataset = Dataset.load_from_disk()
+        dataset.set_format(type='torch', columns=["tensor", "sentiment"], dtype=torch.float32)
+        dataset = dataset.rename_column("sentiment", "label")
+        dataset = dataset.rename_column("tensor", "input")
+        split = dataset.train_test_split(test_size=0.005)
+        self.train_dataset = split["train"]
+        self.val_dataset = split["test"]
+
+    def train_dataloader(self) -> TRAIN_DATALOADERS:
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
+    
+    def val_dataloader(self) -> EVAL_DATALOADERS:
+        return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False)
+
