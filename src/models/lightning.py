@@ -7,6 +7,7 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer, Data
 from pathlib import Path
 import torch.nn.functional as F
 
+
 class LitHuggingfaceClassifier(pl.LightningModule):
     def __init__(self, checkpoint, learning_rate=2e-5, weight_decay=0.0, save_dir = None):
         super().__init__()
@@ -19,7 +20,8 @@ class LitHuggingfaceClassifier(pl.LightningModule):
         self.valid_acc_macro = Accuracy(task="multiclass", average='macro', num_classes=2)
         self.test_acc = Accuracy(task="multiclass", num_classes=2)
 
-        self.save_dir = save_dir
+        self.save_dir = Path(save_dir)
+        self.save_dir.mkdir(exist_ok=True, parents=True)
 
     def forward(self, x):
         return self.model(**x)
@@ -72,29 +74,40 @@ class LitHuggingfaceClassifier(pl.LightningModule):
     
 
 class PLClassifierModel(pl.LightningModule):
-    def __init__(self, model, learning_rate=1e-3, weight_decay=0.0):
+    def __init__(self, model, learning_rate=1e-3, weight_decay=0.0, save_dir = None):
         super().__init__()
+        # self.model - small PyTorch model
         self.model = model
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
+        self.save_dir = save_dir
 
         self.train_acc = Accuracy(task="multiclass", num_classes=2)
         self.valid_acc_micro = Accuracy(task="multiclass", average='micro', num_classes=2)
         self.valid_acc_macro = Accuracy(task="multiclass", average='macro', num_classes=2)
         self.test_acc = Accuracy(task="multiclass", num_classes=2)
 
+        self.save_dir = Path(save_dir)
+        self.save_dir.mkdir(exist_ok=True, parents=True)
+
 
     def forward(self, x):
+        x = x.to(torch.float32)
         return self.model(x)
     
     def _loss_function(self, logits, labels):
         if logits.shape[-1] == 1:
+            labels = labels.unsqueeze(-1).to(torch.float32)
             return F.binary_cross_entropy_with_logits(logits, labels)
         else:
             return F.cross_entropy(logits, labels)
 
+    def extract_input_and_labels(self, batch):
+        inputs, labels = batch
+        return inputs, labels
+
     def training_step(self, batch, batch_idx):
-        inputs, labels = batch["input"], batch["label"]
+        inputs, labels = self.extract_input_and_labels(batch)
         logits = self(inputs)
 
         preds = torch.argmax(logits, dim=-1)
@@ -110,6 +123,9 @@ class PLClassifierModel(pl.LightningModule):
         self.log("train_acc", self.train_acc.compute(), prog_bar=True)
         self.train_acc.reset()
 
+        if self.save_dir:
+            torch.save(self.model.state_dict(), f"{self.save_dir}/epoch_{self.current_epoch}.pt")
+
     
     def on_validation_epoch_end(self) -> None:
         self.log("valid_acc_micro", self.valid_acc_micro.compute(), prog_bar=True)
@@ -119,7 +135,7 @@ class PLClassifierModel(pl.LightningModule):
 
 
     def validation_step(self, batch, batch_idx):
-        inputs, labels = batch["input"], batch["label"]
+        inputs, labels = self.extract_input_and_labels(batch)
         logits = self(inputs)
 
         preds = torch.argmax(logits, dim=-1)

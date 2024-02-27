@@ -1,3 +1,4 @@
+from sympy import ordered
 import torch
 import torch.nn as nn
 import chess
@@ -5,6 +6,7 @@ import board_representation.board_representation_2 as br
 import numpy as np
 import random
 from more_itertools import partition
+import board_representation.sentimate as br_sentimate
 
 class Agent:
     def __init__(self) -> None:
@@ -14,12 +16,13 @@ class Agent:
         pass
 
 class ModelAgent(Agent):
-    def __init__(self, model, convert_fn = br.move_to_tensor) -> None:
+    def __init__(self, model, convert_fn = br.move_to_tensor, min_for_black = False) -> None:
         super().__init__()
         self.model = model
         self.model_device = next(iter(model.parameters())).device
         self.model_dtype = next(iter(model.parameters())).dtype
         self.convert_fn = convert_fn
+        self.min_for_black = min_for_black
 
     def batch_legal_moves(self, board: chess.Board):
         move_tensors = [self.convert_fn(board.fen(), move) for move in board.legal_moves]
@@ -36,7 +39,12 @@ class ModelAgent(Agent):
         self.model.eval()
         with torch.inference_mode():
             out = self.model(batch_moves)
+
+            if out.shape[-1] == 2:
+                out = out[:, 1]
+
             best_move_ind = out.argmax().item()
+            
             best_move = list(board.legal_moves)[best_move_ind]
 
             return best_move
@@ -58,312 +66,208 @@ class RandomAgent(Agent):
 
 
 
-class MinimaxAgent(Agent):
-    def __init__(self, model: nn.Module, max_depth, min_coef = 0.5, decay = 0.5) -> None:
+class NegaMaxAgent(Agent):
+    def __init__(self, depth = 3) -> None:
         super().__init__()
-        self.model = model
-        self.model.cuda()
-        self.model.eval()
-        self.model_dtype = next(iter(model.parameters())).dtype
-        self.max_depth = max_depth
-        self.move_scores = {}
-        self.min_coef = min_coef
-        self.decay = decay
-    
+        self.depth = depth
 
     def play(self, board: chess.Board):
-        best_move = None
-        max_eval = float('-inf')
-        alpha = float('-inf')
-        beta = float('inf')
-
-        legal_moves_scores = self.eval_legal_moves(board)
-
-        for move, move_score in legal_moves_scores:
-            board.push(move)
-            eval_score = move_score + self.decay * self.minimax_alpha_beta(board, self.max_depth - 1, alpha, beta, False)
-            board.pop()
-            if eval_score > max_eval or best_move == None:
-                max_eval = eval_score
-                best_move = move
-        return best_move
-
-    def minimax_alpha_beta(self, board: chess.Board, depth, alpha, beta, maximizing_player):
-        if board.is_game_over():
-            if board.result() == '1/2-1/2':
-                return 0
-            elif maximizing_player:
-                return float('-inf')
-            else:
-                return float('inf')
-
-        if depth == 0:
-            return 0
-
-        legal_moves_scores = self.eval_legal_moves(board)
-
-        if maximizing_player:
-            max_eval = float('-inf')
-            for move, move_score in legal_moves_scores:
-                board.push(move)
-                eval_score = move_score + self.decay * self.minimax_alpha_beta(board, depth - 1, alpha, beta, False)
-                board.pop()
-                max_eval = max(max_eval, eval_score)
-                alpha = max(alpha, eval_score)
-                if beta <= alpha:
-                    break
-            return max_eval
-        else:
-            min_eval = float('inf')
-            for move, move_score in legal_moves_scores:
-                board.push(move)
-                eval_score = -self.min_coef*move_score + self.decay * self.minimax_alpha_beta(board, depth - 1, alpha, beta, True)
-                board.pop()
-                min_eval = min(min_eval, eval_score)
-                beta = min(beta, eval_score)
-                if beta <= alpha:
-                    break
-            return min_eval
-
-    def batch_legal_moves(self, board: chess.Board):
-        move_tensors = [br.move_to_tensor(board, move, self.model_dtype) for move in board.legal_moves]
-        return torch.stack(move_tensors)
-
-    def eval_legal_moves(self, board: chess.Board):
-        legal_moves = np.array(list(board.legal_moves))
-        batch_moves = self.batch_legal_moves(board).cuda()
-
-        with torch.inference_mode():
-            move_scores = self.model(batch_moves).flatten()
-            argsort_scores = torch.argsort(move_scores, descending=True).cpu().numpy()
-            sorted_scores = move_scores[argsort_scores].cpu().numpy()
-            sorted_moves = legal_moves[argsort_scores]
-            
-            return zip(sorted_moves, sorted_scores)
-
-
-
-
-    
-class FasterMinimaxAgent(MinimaxAgent):
-    def __init__(self, model: nn.Module, max_depth, min_coef = 0.5, decay = 0.5):
-        super().__init__(model, max_depth, min_coef, decay)
-        self.board_numpy_cache = {}
-
-    def batch_legal_moves(self, board: chess.Board):
-        next_pos = br.next_positions(board)
-        board_np = self.board_numpy(board)
-        next_board_nps = list(map(self.board_numpy, next_pos))
-        batch_list = [np.concatenate([board_np, next_np]) for next_np in next_board_nps]
-        batch_numpy = np.stack(batch_list)
-        batch_tensor = torch.from_numpy(batch_numpy).to(self.model_dtype)
-
-        return batch_tensor
-
-    def board_numpy(self, board: chess.Board):
-        # epd = board.epd()
-        # res = self.board_numpy_cache.get(epd)
-
-        # if not np.any(res):
-        #     res = br.board_to_numpy(board)
-        #     self.board_numpy_cache[epd] = res
-
-        # return res
-
-        return br.board_to_numpy(board)
-
-    
-
-piece_value_pos_eval = {
-    'P': 1, 'p': -1,
-    'N': 3, 'n': -3,
-    'B': 3, 'b': -3,
-    'R': 5, 'r': -5,
-    'Q': 9, 'q': -9,
-    'K': 0, 'k': 0,
-}
-
-piece_value = {
-    chess.PAWN: 1,
-    chess.BISHOP: 3,
-    chess.KNIGHT: 3,
-    chess.ROOK: 5,
-    chess.QUEEN: 9,
-    chess.KING: 0,
-    None: 0,
-}
-
-def material_eval(board: chess.Board):
-    pieces = map(str, board.piece_map().values())
-    return sum([piece_value_pos_eval[p] for p in pieces])
-
-
-class MiniMaxPositionEvalAgent(Agent):
-    def __init__(self, max_depth):
-        super().__init__()
-        self.max_depth = max_depth
-
-    def play(self, board: chess.Board):
+        best_score = -float('inf')
         best_moves = []
-        max_eval = float('-inf')
-        alpha = float('-inf')
+        alpha = -float('inf')
         beta = float('inf')
         
-        possible_moves = self.order_legal_moves(board)
-
-        for move in possible_moves:
+        for move in self.ordered_moves(board):
             board.push(move)
-            eval_score = self.minimax_alpha_beta(board, self.max_depth - 1, alpha, beta, False)
+            score = -self.negamax(board, self.depth - 1, -beta, -alpha)
             board.pop()
-            if eval_score > max_eval or best_moves == []:
-                max_eval = eval_score
+            if score > best_score:
+                best_score = score
                 best_moves = [move]
-            elif eval_score == max_eval:
+            elif score == best_score:
                 best_moves.append(move)
-                
-        # print(list(map(str, best_moves)))
-                
-        return self.chose_from_best_moves(board, best_moves)
-    
-    
-    def game_over_result(self, board: chess.Board, maximizing_player):
-        if board.result() == '1/2-1/2':
-                return 0
-        elif maximizing_player:
-            return float('-inf')
-        else:
-            return float('inf')
+            alpha = max(alpha, score)
         
-    def eval_position(self, board: chess.Board, maximizing_player):
-        material_difference = material_eval(board)
+        return self.choose_from_best_moves(board, best_moves)
+
+
+    def negamax(self, board, depth, alpha, beta):
+        if depth == 0 or board.is_game_over():
+            return self.evaluate_board(board)
         
-        if board.turn == maximizing_player:
-            return material_difference
-        else:
-            return -material_difference
-    
-    def chose_from_best_moves(self, board: chess.Board, best_moves):
-        return np.random.choice(best_moves)
+        max_score = -float('inf')
+        for move in self.ordered_moves(board):
+            board.push(move)
+            score = -self.negamax(board, depth - 1, -beta, -alpha)
+            board.pop()
+            max_score = max(max_score, score)
+            alpha = max(alpha, score)
+            if alpha > beta:
+                break
+        return max_score
     
 
-    def order_legal_moves(self, board: chess.Board, only_captures = False, square = None):
-        if only_captures:
-            if square:
-                possible_moves = [move for move in board.legal_moves if board.is_capture(move) and move.to_square == square]
-            else:
-                possible_moves = [move for move in board.legal_moves if board.is_capture(move)]
-        else:
-            possible_moves = list(board.legal_moves)
-            
-        move_scores = []
-        
-        def move_score(move):
-            res = 0
-            
-            if board.is_capture(move):
-                res = piece_value[board.piece_type_at(move.to_square)]
-                
-            if move.promotion:
-                res += piece_value[move.promotion]
-                
-            return res
-            
-        return sorted(possible_moves, key=move_score, reverse=True)
+    def ordered_moves(self, board):
+        return board.legal_moves
+    
+    def choose_from_best_moves(self, board, best_moves):
+        pass
+    
+    # Evaluate the board from the perspective of the current player
+    def evaluate_board(self, board):
+        pass
 
 
-    def minimax_alpha_beta(self, board: chess.Board, depth, alpha, beta, maximizing_player):       
-        if board.is_game_over():
-            return self.game_over_result(board, maximizing_player)
+class NegaMaxMaterialAgent(NegaMaxAgent):
+    def __init__(self, depth = 3) -> None:
+        super().__init__(depth)
+    
+    def evaluate_board(self, board):
+        color = 1 if board.turn == chess.WHITE else -1
+        return color * material_difference(board)
+    
+    def choose_from_best_moves(self, board, best_moves):
+        return random.choice(best_moves)
+    
+def move_to_tensor(board, move):
+    pl = br_sentimate.move_to_piece_list(board, move)
+    array = br_sentimate.piece_lists_to_board_array_only_pieces(*pl)
+    tensor = torch.from_numpy(array)
+    return tensor
 
-        if depth == 0:
-            if board.move_stack:
-                return self.search_captures(board, alpha, beta, maximizing_player, square=board.peek().to_square)
-            return self.eval_position(board, maximizing_player)
-        
-        possible_moves = self.order_legal_moves(board)
-
-
-        if maximizing_player:
-            max_eval = float('-inf')
-            for move in possible_moves:
-                board.push(move)
-                eval_score = self.minimax_alpha_beta(board, depth - 1, alpha, beta, False)
-                board.pop()
-                max_eval = max(max_eval, eval_score)
-                alpha = max(alpha, eval_score)
-                if beta < alpha:
-                    break
-            return max_eval
-        else:
-            min_eval = float('inf')
-            for move in possible_moves:
-                board.push(move)
-                eval_score = self.minimax_alpha_beta(board, depth - 1, alpha, beta, True)
-                board.pop()
-                min_eval = min(min_eval, eval_score)
-                beta = min(beta, eval_score)
-                if beta < alpha:
-                    break
-            return min_eval
-        
-    def search_captures(self, board: chess.Board, alpha, beta, maximizing_player, square = None):       
-        if board.is_game_over():
-            return self.game_over_result(board, maximizing_player)
-        
-        captures = self.order_legal_moves(board, only_captures=True, square = square)
-        
-        if not captures:
-            return self.eval_position(board, maximizing_player)
-        
-        
-        if maximizing_player:
-            max_eval = float('-inf')
-            for move in captures:
-                board.push(move)
-                eval_score = self.search_captures(board, alpha, beta, False, square=square)
-                board.pop()
-                max_eval = max(max_eval, eval_score)
-                alpha = max(alpha, eval_score)
-                if beta <= alpha:
-                    break
-            return max_eval
-        else:
-            min_eval = float('inf')
-            for move in captures:
-                board.push(move)
-                eval_score = self.search_captures(board, alpha, beta, True, square=square)
-                board.pop()
-                min_eval = min(min_eval, eval_score)
-                beta = min(beta, eval_score)
-                if beta <= alpha:
-                    break
-            return min_eval
-        
-
-class MiniMaxPositionEvalModelAgent(MiniMaxPositionEvalAgent):
-    def __init__(self, model: nn.Module, max_depth, move_to_input_fn):
-        super().__init__(max_depth)
+class NegaMaxMaterialModelAgent(NegaMaxMaterialAgent):
+    def __init__(self, model, convert_fn = move_to_tensor, depth=3) -> None:
+        super().__init__(depth)
         self.model = model
-        self.model.cuda()
+        self.convert_fn = convert_fn
+
+    def choose_from_best_moves(self, board, best_moves):
+        batch_moves = [self.convert_fn(board.fen(), move) for move in best_moves]
+        batch_moves = torch.stack(batch_moves)
+
         self.model.eval()
-        self.model_dtype = next(iter(model.parameters())).dtype
-        
-        
-    def chose_from_best_moves(self, board: chess.Board, best_moves):
-        batch_moves = self.batch_moves(board, best_moves).cuda()
-
         with torch.inference_mode():
-            move_scores = self.model(batch_moves).flatten()
-            best_move_index = torch.argmax(move_scores).cpu().item()
-            return best_moves[best_move_index]
-            
-    
-    def batch_moves(self, board: chess.Board, moves):
-        next_pos = br.next_positions(board, moves)
-        board_np = br.board_to_numpy(board)
-        next_board_nps = list(map(br.board_to_numpy, next_pos))
-        batch_list = [np.concatenate([board_np, next_np]) for next_np in next_board_nps]
-        batch_numpy = np.stack(batch_list)
-        batch_tensor = torch.from_numpy(batch_numpy).to(self.model_dtype)
+            out = self.model(batch_moves)
 
-        return batch_tensor
+            if out.shape[-1] == 2:
+                out = out[:, 1]
+
+            best_move_ind = out.argmax().item()
+            
+            best_move = best_moves[best_move_ind]
+
+            return best_move
+        
+
+class NegaMaxModelSearchAgent(Agent):
+    def __init__(self, model, convert_fn = move_to_tensor, depth = 3) -> None:
+        super().__init__()
+        self.depth = depth
+        # Model should return a probability of move being good
+        self.model = model
+        self.convert_fn = convert_fn
+
+    def play(self, board: chess.Board):
+        best_score = -float('inf')
+        best_moves = []
+        alpha = -float('inf')
+        beta = float('inf')
+        
+        ordered_moves, move_scores = self.ordered_moves_and_scores(board)
+
+        # print("ORDERED MOVES:", ordered_moves)
+        # print("LEGAL MOVES:", list(board.legal_moves))
+
+        for move, move_score in zip(ordered_moves, move_scores):
+            board.push(move)
+            score = move_score.item() -self.negamax(board, self.depth - 1, -beta, -alpha, False)
+            board.pop()
+            if score > best_score:
+                best_score = score
+                best_moves = [move]
+            elif score == best_score:
+                best_moves.append(move)
+            alpha = max(alpha, score)
+
+        return self.choose_from_best_moves(board, best_moves)
+
+
+    def negamax(self, board, depth, alpha, beta, max_player):
+        if depth == 0 or board.is_game_over():
+            return self.evaluate_board(board)
+        
+        max_score = -float('inf')
+
+        ordered_moves, move_scores = self.ordered_moves_and_scores(board)
+
+        # print("ORDERED MOVES:", ordered_moves)
+        # print("LEGAL MOVES:", list(board.legal_moves))
+
+        for move, move_score in zip(ordered_moves, move_scores):
+            board.push(move)
+            score = -self.negamax(board, depth - 1, -beta, -alpha, not max_player)
+            if max_player:
+                score += move_score.item()
+            board.pop()
+            max_score = max(max_score, score)
+            alpha = max(alpha, score)
+            if alpha > beta:
+                break
+        return max_score
+    
+
+    def ordered_moves_and_scores(self, board: chess.Board):
+        legal_moves = np.array(list(board.legal_moves))
+        model_input = [self.convert_fn(board.fen(), move) for move in board.legal_moves]
+        
+        with torch.inference_mode():
+            model_input = torch.stack(model_input)
+            move_probabilites = self.model(model_input)
+            # move_probabilites = torch.log(move_probabilites)
+
+        sorted_indices = move_probabilites.argsort(descending=True)
+
+        ordered_moves = legal_moves[sorted_indices]
+
+        if len(legal_moves) == 1:
+            ordered_moves = legal_moves
+
+        scores = move_probabilites[sorted_indices]
+
+        return ordered_moves, scores
+    
+    def choose_from_best_moves(self, board, best_moves):
+        return best_moves[0]
+    
+    # Evaluate the board from the perspective of the current player
+    def evaluate_board(self, board):
+        return 0
+
+
+
+def material(board):
+    white = board.occupied_co[chess.WHITE]
+    black = board.occupied_co[chess.BLACK]
+    white_material = (
+        chess.popcount(white & board.pawns) +
+        3 * chess.popcount(white & board.knights) +
+        3 * chess.popcount(white & board.bishops) +
+        5 * chess.popcount(white & board.rooks) +
+        9 * chess.popcount(white & board.queens)
+    )
+
+    black_material = (
+        chess.popcount(black & board.pawns) +
+        3 * chess.popcount(black & board.knights) +
+        3 * chess.popcount(black & board.bishops) +
+        5 * chess.popcount(black & board.rooks) +
+        9 * chess.popcount(black & board.queens)
+    )
+
+    return white_material, black_material
+
+def material_difference(board):
+    if board.is_checkmate():
+        return -float('inf') if board.turn == chess.WHITE else float('inf')
+    white_material, black_material = material(board)
+    return white_material - black_material
