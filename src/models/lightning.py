@@ -1,11 +1,13 @@
-from typing import Any
-import torch.nn as nn
-import pytorch_lightning as pl
-from torchmetrics import Accuracy
-import torch
-from transformers import AutoModelForSequenceClassification, AutoTokenizer, DataCollatorWithPadding
 from pathlib import Path
+from typing import Any
+
+import pytorch_lightning as pl
+import torch
+import torch.nn as nn
 import torch.nn.functional as F
+from torchmetrics import Accuracy
+from transformers import (AutoModelForSequenceClassification, AutoTokenizer,
+                          DataCollatorWithPadding)
 
 
 class LitHuggingfaceClassifier(pl.LightningModule):
@@ -87,8 +89,10 @@ class PLClassifierModel(pl.LightningModule):
         self.valid_acc_macro = Accuracy(task="multiclass", average='macro', num_classes=2)
         self.test_acc = Accuracy(task="multiclass", num_classes=2)
 
-        self.save_dir = Path(save_dir)
-        self.save_dir.mkdir(exist_ok=True, parents=True)
+        self.save_dir = None
+        if save_dir:
+            self.save_dir = Path(save_dir)
+            self.save_dir.mkdir(exist_ok=True, parents=True)
 
 
     def forward(self, x):

@@ -1,12 +1,15 @@
-from sympy import ordered
+import random
+
+import chess
+import numpy as np
 import torch
 import torch.nn as nn
-import chess
-import board_representation.board_representation_2 as br
-import numpy as np
-import random
 from more_itertools import partition
+from sympy import ordered
+
+import board_representation.board_representation_2 as br
 import board_representation.sentimate as br_sentimate
+
 
 class Agent:
     def __init__(self) -> None:
@@ -150,7 +153,7 @@ class NegaMaxMaterialModelAgent(NegaMaxMaterialAgent):
             out = self.model(batch_moves)
 
             if out.shape[-1] == 2:
-                out = out[:, 1]
+                out = out[..., 1]
 
             best_move_ind = out.argmax().item()
             
